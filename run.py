@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Body, Header, File
+from fastapi import FastAPI
 from routes.v1 import app_v1
 from routes.v2 import app_v2
 

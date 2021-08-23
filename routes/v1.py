@@ -1,15 +1,22 @@
+from utils.const import TOKEN_INVALID_CREDENTIALS_MSG
+from fastapi import FastAPI, Body, Header, File, Depends
+from fastapi.exceptions import HTTPException
+from fastapi.security.oauth2 import OAuth2PasswordRequestForm
 from models.book import Book
 from models.user import User
 from models.author import Author
-from fastapi import FastAPI, Body, Header, File
-from starlette.status import HTTP_201_CREATED
+from starlette.status import HTTP_201_CREATED, HTTP_401_UNAUTHORIZED
 from starlette.responses import Response
+from utils.security import authenticate_user, check_jwt_token, create_jwt_token
+from models.jwt_user import JWTUser
 
 app_v1 = FastAPI(openapi_prefix="/v1")
 
 
 @app_v1.post("/user", status_code=HTTP_201_CREATED)
-async def post_user(user: User, x_custom: str = Header(...)):
+async def post_user(
+    user: User, x_custom: str = Header("default"), jwt: bool = Depends(check_jwt_token)
+):
     return {"request body": user, "request custom headers": x_custom}
 
 
@@ -18,7 +25,7 @@ async def get_user_validation(password: str):
     return {"query parameter": password}
 
 
-@app_v1.get("/book/{isbn}", response_model=Book, response_model_exclude=["author"])
+@app_v1.get("/book/{isbn}", response_model=Book, response_model_exclude=set("author"))
 async def get_book_with_isbn(isbn: str):
     author_dict = {"name": "author1", "book": ["books", "book2"]}
     author1 = Author(**author_dict)
@@ -53,3 +60,19 @@ async def upload_user_photo(response: Response, profile_photo: bytes = File(...)
     response.set_cookie(key="cookie-api", value="test")
 
     return {"file size": len(profile_photo)}
+
+
+@app_v1.post("/token")
+async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
+    jwt_user_dict = {"username": form_data.username, "password": form_data.password}
+    jwt_user = JWTUser(**jwt_user_dict)
+
+    user = authenticate_user(jwt_user)
+    if user is None:
+        raise HTTPException(
+            status_code=HTTP_401_UNAUTHORIZED, detail=TOKEN_INVALID_CREDENTIALS_MSG
+        )
+
+    jwt_token = create_jwt_token(user)
+
+    return {"token": jwt_token}
