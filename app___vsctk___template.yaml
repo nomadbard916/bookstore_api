@@ -1,0 +1,9 @@
+Resources:
+  bookstoreAPI:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: run.get_user_validation
+      CodeUri: E:/Coding_projects/bookstoreAPI
+      Runtime: python3.8
+      Environment:
+        Variables: {}

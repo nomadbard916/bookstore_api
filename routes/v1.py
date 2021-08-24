@@ -14,9 +14,7 @@ app_v1 = FastAPI(openapi_prefix="/v1")
 
 
 @app_v1.post("/user", status_code=HTTP_201_CREATED)
-async def post_user(
-    user: User, x_custom: str = Header("default"), jwt: bool = Depends(check_jwt_token)
-):
+async def post_user(user: User, x_custom: str = Header("default")):
     return {"request body": user, "request custom headers": x_custom}
 
 

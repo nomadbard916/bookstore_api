@@ -14,7 +14,7 @@ from datetime import datetime, timedelta
 import time
 from starlette.status import HTTP_401_UNAUTHORIZED
 
-pwd_context = CryptContext(schemes="bcrypted")
+pwd_context = CryptContext(schemes="bcrypt")
 oauth_schema = OAuth2PasswordBearer(tokenUrl="/token")
 
 jwt_user1 = {
@@ -80,4 +80,4 @@ def final_checks(role: str):
     if role == "admin":
         return True
     else:
-        raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail=JWT_WRONG_ROLE)
+        return False
