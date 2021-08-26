@@ -6,7 +6,6 @@ from utils.const import (
     JWT_EXPIRATION_TIME_MINUTES,
     JWT_INVALID_MSG,
     JWT_SECRET_KEY,
-    JWT_WRONG_ROLE,
 )
 from models.jwt_user import JWTUser
 from passlib.context import CryptContext

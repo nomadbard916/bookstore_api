@@ -1,8 +1,8 @@
 from models.user import User
-from fastapi import FastAPI, Header
+from fastapi import APIRouter, Header
 from starlette.status import HTTP_201_CREATED
 
-app_v2 = FastAPI(openapi_prefix="/v2")
+app_v2 = APIRouter()
 
 
 @app_v2.post("/user", status_code=HTTP_201_CREATED)
