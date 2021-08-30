@@ -12,17 +12,10 @@ from passlib.context import CryptContext
 from datetime import datetime, timedelta
 import time
 from starlette.status import HTTP_401_UNAUTHORIZED
+from utils.db_functions import db_check_token_user, db_check_jwt_username
 
 pwd_context = CryptContext(schemes="bcrypt")
 oauth_schema = OAuth2PasswordBearer(tokenUrl="/token")
-
-jwt_user1 = {
-    "username": "user1",
-    "password": "pass1",
-    "disabled": False,
-    "role": "admin",
-}
-fake_jwt_user1 = JWTUser(**jwt_user1)
 
 
 def get_hashed_password(password):
@@ -38,11 +31,17 @@ def verify_password(plain_password, hashed_password):
 
 
 # Authenticate username and password to give JWT token
-async def authenticate_user(user: JWTUser):
-    if fake_jwt_user1.username == user.username:
-        if verify_password(user.password, fake_jwt_user1.password):
-            user.role = "admin"
-            return user
+async def authenticate_user(db_user: JWTUser):
+    potential_users = await db_check_token_user(db_user)
+    is_valid = False
+
+    for db_user in potential_users:
+        if verify_password(db_user.password, db_user["password"]):
+            is_valid = True
+
+    if is_valid:
+        db_user.role = "admin"
+        return db_user
 
     return None
 
@@ -65,13 +64,14 @@ async def check_jwt_token(token: str = Depends(oauth_schema)):
         expiration = jwt_payload.get("exp")
 
         if time.time() < expiration:
-            if fake_jwt_user1.username == username:
+            is_valid = await db_check_jwt_username(username)
+            if is_valid:
                 return final_checks(role)
 
-    except Exception as e:
-        raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail=JWT_INVALID_MSG)
+    except Exception:
+        raise HTTPException(status_code=HTTP_401_UNAUTHORIZED)
 
-    return False
+    raise HTTPException(status_code=HTTP_401_UNAUTHORIZED)
 
 
 # Last checking and returning the final result
@@ -79,4 +79,4 @@ def final_checks(role: str):
     if role == "admin":
         return True
     else:
-        return False
+        return HTTPException(status_code=HTTP_401_UNAUTHORIZED)
