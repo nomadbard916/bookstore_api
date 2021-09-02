@@ -1,10 +1,14 @@
-from utils.const import TOKEN_DESCRIPTION, TOKEN_INVALID_CREDENTIALS_MSG, TOKEN_SUMMARY
+from utils.const import (
+    REDIS_URL,
+    TOKEN_DESCRIPTION,
+    TOKEN_INVALID_CREDENTIALS_MSG,
+    TOKEN_SUMMARY,
+)
 from models.jwt_user import JWTUser
 from datetime import datetime
 from fastapi.exceptions import HTTPException
 from fastapi.param_functions import Depends
 from fastapi.security.oauth2 import OAuth2PasswordRequestForm
-from starlette.responses import Response
 from starlette.status import HTTP_401_UNAUTHORIZED
 from utils.security import authenticate_user, check_jwt_token, create_jwt_token
 from fastapi import FastAPI
@@ -12,6 +16,8 @@ from starlette.requests import Request
 from routes.v1 import app_v1
 from routes.v2 import app_v2
 from utils.db_object import db
+import utils.redis_object as redis_object
+import aioredis
 
 app = FastAPI(
     title="Bookstore API Documentation",
@@ -26,11 +32,15 @@ app.include_router(app_v2, prefix="/v2", dependencies=[Depends(check_jwt_token)]
 @app.on_event("startup")
 async def connect_db():
     await db.connect()
+    redis_object.redis = await aioredis.create_redis_pool(REDIS_URL)
 
 
 @app.on_event("shutdown")
 async def disconnect_db():
     await db.disconnect()
+    redis_object.redis.close()
+
+    await redis_object.redis.wait_closed()
 
 
 @app.post("/token", description=TOKEN_DESCRIPTION, summary=TOKEN_SUMMARY)
