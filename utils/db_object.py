@@ -1,14 +1,9 @@
 from databases import Database
-from utils.const import DB_URL
+from utils.const import DB_URL, TESTING, TEST_DB_URL
 
-db = Database(DB_URL)
-
-
-async def connect_db():
+if TESTING:
+    db = Database(TEST_DB_URL)
+else:
     db = Database(DB_URL)
-    await db.connect()
-    return db
 
 
-async def disconnect_db(db):
-    await db.disconnect()

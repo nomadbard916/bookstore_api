@@ -17,6 +17,7 @@ from routes.v1 import app_v1
 from routes.v2 import app_v2
 from utils.db_object import db
 import utils.redis_object as redis_object
+from utils.redis_object import check_test_redis
 import aioredis
 
 app = FastAPI(
@@ -25,8 +26,16 @@ app = FastAPI(
     version="1.0.0",
 )
 
-app.include_router(app_v1, prefix="/v1", dependencies=[Depends(check_jwt_token)])
-app.include_router(app_v2, prefix="/v2", dependencies=[Depends(check_jwt_token)])
+app.include_router(
+    app_v1,
+    prefix="/v1",
+    dependencies=[Depends(check_jwt_token), Depends(check_test_redis)],
+)
+app.include_router(
+    app_v2,
+    prefix="/v2",
+    dependencies=[Depends(check_jwt_token), Depends(check_test_redis)],
+)
 
 
 @app.on_event("startup")
