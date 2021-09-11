@@ -1,5 +1,7 @@
 from utils.const import (
     REDIS_URL,
+    REDIS_URL_PRODUCTION,
+    TESTING,
     TOKEN_DESCRIPTION,
     TOKEN_INVALID_CREDENTIALS_MSG,
     TOKEN_SUMMARY,
@@ -19,6 +21,7 @@ from utils.db_object import db
 import utils.redis_object as redis_object
 from utils.redis_object import check_test_redis
 import aioredis
+import pickle
 
 app = FastAPI(
     title="Bookstore API Documentation",
@@ -40,29 +43,39 @@ app.include_router(
 
 @app.on_event("startup")
 async def connect_db():
-    await db.connect()
-    redis_object.redis = await aioredis.create_redis_pool(REDIS_URL)
+    if not TESTING:
+        await db.connect()
+        redis_object.redis = await aioredis.create_redis_pool(REDIS_URL_PRODUCTION)
+    else:
+        redis_object.redis = await aioredis.create_redis_pool(REDIS_URL)
 
 
 @app.on_event("shutdown")
 async def disconnect_db():
-    await db.disconnect()
-    redis_object.redis.close()
+    if not TESTING:
+        await db.disconnect()
+        redis_object.redis.close()
 
-    await redis_object.redis.wait_closed()
+        await redis_object.redis.wait_closed()
 
 
 @app.post("/token", description=TOKEN_DESCRIPTION, summary=TOKEN_SUMMARY)
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
-    jwt_user_dict = {"username": form_data.username, "password": form_data.password}
-    jwt_user = JWTUser(**jwt_user_dict)
-    user = await authenticate_user(jwt_user)
+    redis_key = f"token:{form_data.username},{form_data.password}"
+    user = await redis_object.redis.get(redis_key)
 
-    user = authenticate_user(jwt_user)
-    if user is None:
-        raise HTTPException(
-            status_code=HTTP_401_UNAUTHORIZED, detail=TOKEN_INVALID_CREDENTIALS_MSG
-        )
+    if not user:
+        jwt_user_dict = {"username": form_data.username, "password": form_data.password}
+        jwt_user = JWTUser(**jwt_user_dict)
+        user = await authenticate_user(jwt_user)
+
+        if user is None:
+            raise HTTPException(
+                status_code=HTTP_401_UNAUTHORIZED, detail=TOKEN_INVALID_CREDENTIALS_MSG
+            )
+        await redis_object.redis.set(redis_key, pickle.dumps(user))
+    else:
+        user = pickle.loads(user)
 
     jwt_token = create_jwt_token(user)
 
